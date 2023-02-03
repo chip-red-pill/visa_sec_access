@@ -1,0 +1,6 @@
+-----------------------------------------------------------------
+CPUID: 0x000706a1: PCH DID: 0x31f0
+NPK BDF: 0:0:2
+NPK CSR BAR: 0xa1900000
+NPK VISA Secure Policy: SCP: 0x00000000: SWP: 0x00000000: SRP: 0xffffffff
+

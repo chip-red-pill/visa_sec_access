@@ -1,0 +1,8 @@
+/x64/Release/visasecacc_test.tlog
+/x64/Release/visasecacc_test.vcxproj.FileListAbsolute.txt
+.vs
+*.obj
+*.pdb
+*.iobj
+*.ipdb
+*.log
