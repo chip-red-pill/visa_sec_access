@@ -224,3 +224,40 @@ int rwdrv_write_phys_mem(unsigned long long addr, DWORD val)
 	}
 	return 0;
 }
+
+
+struct RWDRV_MSR_REQ
+{
+	DWORD msr_val_low;
+	DWORD _reserved;
+	DWORD msr_num;
+	DWORD msr_val_hi;
+};
+
+int rwdrv_read_msr(unsigned msr_num, unsigned long long* out_val)
+{
+	if (init_rwdrv())
+		return -1;
+	assert(g_rwdrv_hnd);
+
+	RWDRV_MSR_REQ req_buf = {};
+	DWORD bytes_ret;
+
+	req_buf.msr_num = msr_num;
+	BOOL res = DeviceIoControl(g_rwdrv_hnd, 0x222848, &req_buf, sizeof req_buf, &req_buf, sizeof req_buf, &bytes_ret, NULL);
+	if (!res)
+	{
+		DWORD err = GetLastError();
+		wprintf(L"Error: Can't control RwDrv device (read msr): ioctl code: 0x%08x: msr_num: 0x%08x: error: 0x%08x\n",
+			0x222848, msr_num, err);
+		return -1;
+	}
+	if (bytes_ret != sizeof req_buf)
+	{
+		wprintf(L"Error: Can't control RwDrv device (read msr): Returned data size mismatch: ioctl code: 0x%08x: msr_num: 0x%08x: req data size: 0x%08llx: ret data size: 0x%08x\n",
+			0x222848, msr_num, sizeof req_buf, bytes_ret);
+		return -1;
+	}
+	*out_val = (unsigned long long(req_buf.msr_val_hi) << 32) | req_buf.msr_val_low;
+	return 0;
+}

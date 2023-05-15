@@ -16,14 +16,14 @@ int write_pci(unsigned bus, unsigned dev, unsigned func, unsigned offset, DWORD 
 	return rwdrv_write_phys_mem(ecam_base | (bus << 20) | ((dev & 0x1f) << 15) | ((func & 7) << 12) | (offset & 0xfff), val);
 }
 
-void get_npk_bdf(unsigned pch_did, unsigned& bus, unsigned& dev, unsigned& func)
+void get_npk_bdf(unsigned host_did, unsigned& bus, unsigned& dev, unsigned& func)
 {
-	switch (pch_did >> 16)
+	switch (host_did >> 16)
 	{
 	// old SoCs
-	case 0x5af0: // DNV
-	case 0x1990: // GLK
-	case 0x31f0: // BXTP
+	case 0x5af0: // BXTP
+	case 0x1990: // DNV
+	case 0x31f0: // GLK
 		bus = 0;
 		dev = 0;
 		func = 2;
@@ -41,18 +41,43 @@ int main()
 {
 	wprintf(L"-----------------------------------------------------------------\n");
 
-	DWORD pch_did;
-	if (read_pci(0, 0, 0, 0, &pch_did))
+	DWORD host_did, pch_did, rev_id, manuf_id;
+	unsigned long long platform_id;
+	if (read_pci(0, 0, 0, 0, &host_did))
+	{
+		wprintf(L"Error: Can't read Host DID\n");
+		return -1;
+	}
+	if (read_pci(0, 0x1f, 0, 0, &pch_did))
 	{
 		wprintf(L"Error: Can't read PCH DID\n");
 		return -1;
 	}
+	if (read_pci(0, 0x1f, 0, 8, &rev_id))
+	{
+		wprintf(L"Error: Can't read PCH Revision ID\n");
+		return -1;
+	}
+	if (read_pci(0, 0, 0, 0xf8, &manuf_id))
+	{
+		wprintf(L"Error: Can't read SoC Manufacturer ID\n");
+		return -1;
+	}
+	if (rwdrv_read_msr(0x17, &platform_id))
+	{
+		wprintf(L"Error: Can't read CPU Platform ID\n");
+		return -1;
+	}
 	int cpu_info[4];
 	__cpuid(cpu_info, 1);
-	wprintf(L"CPUID: 0x%08x: PCH DID: 0x%04x\n", cpu_info[0], pch_did >> 16);
+
+	wprintf(L"CPUID: 0x%05x: HOST DID: 0x%04x: PCH DID: 0x%04x:\n"
+		"REVISION ID: 0x%02x: MANUFACTURER ID: 0x%08x: PLATFORM ID: 0x%x\n",
+		cpu_info[0], host_did >> 16, pch_did >> 16,
+		rev_id & 0xff, manuf_id, unsigned((platform_id >> 50) & 7));
 
 	unsigned npk_bus, npk_dev, npk_func;
-	get_npk_bdf(pch_did, npk_bus, npk_dev, npk_func);
+	get_npk_bdf(host_did, npk_bus, npk_dev, npk_func);
 	wprintf(L"NPK BDF: %x:%x:%x\n", npk_bus, npk_dev, npk_func);
 
 	DWORD npk_csr_bar_lower;
